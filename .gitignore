@@ -5,3 +5,5 @@
 .virtual_documents/
 .ipynb_checkpoints/
 catboost_info/
+ca/
+*.log
