@@ -1,0 +1,6 @@
+project:
+  project_name: ClearMl_logging_from_py
+  task_name: CatBoost_model_baseline
+
+cb_params:
+  random_seed: 2024
