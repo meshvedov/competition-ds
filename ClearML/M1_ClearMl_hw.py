@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-# coding: utf-8
 
 import argparse
 import os
+import yaml
+from pathlib import Path
 
 from dataclasses import dataclass, asdict
 import pandas as pd
@@ -35,17 +36,26 @@ def check_clearml_env():
         os.environ['CLEARML_API_ACCESS_KEY'] = getpass(prompt="Введите API Access токен: ")
     if os.getenv('CLEARML_API_SECRET_KEY') is None:
         os.environ['CLEARML_API_SECRET_KEY'] = getpass(prompt="Введите API Secret токен: ")
+        
+# def load_config():
+#     config_path = Path(__file__).parent / 'config.yaml'
+#     if not config_path.exists():
+#         raise FileNotFoundError(f"Configuration file {config_path} not found.")
+#     with open(config_path, 'r') as file:
+#         config = yaml.safe_load(file)
+#     return config
     
 def main():
     try:
         task = Task.init(project_name="ClearMl_logging_from_py", task_name="CatBoost model baseline")
-    except Exception as e:
+    except:
         check_clearml_env()
         task = Task.init(project_name="ClearMl_logging_from_py", task_name="CatBoost model baseline")    
 
     task.add_tags(["catboost", "classification", "baseline"])
     logger = Logger.current_logger()
     
+    # Парсим аргументы командной строки: --iterations, --verbose
     parser = argparse.ArgumentParser(description="CatBoost model training with ClearML logging")
     parser.add_argument('--iterations', type=int, default=1000, help='Number of iterations for CatBoost')
     parser.add_argument('--verbose', type=int, default=100, help='Verbosity level for CatBoost training')
@@ -76,11 +86,12 @@ def main():
         "early_stopping_rounds": 50,
     }
 
-    task.connect(cb_params, name="CatBoost basic parameters")  
-    # ### 4 Подгружаем данные
+    task.connect(cb_params, name="CatBoost basic parameters")  # сохраняем словарь с параметрами эксперимента в ClearML
+    # Подгружаем данные
     url = "https://github.com/a-milenkin/ml_instruments/raw/refs/heads/main/data/quickstart_train.csv"
     rides_info = pd.read_csv(url)
 
+    # Препроцессинг данных
     cat_features = ['model', 'car_type', 'fuel_type']
     targets = ['target_class', 'target_reg']
     features2drop = ['car_id']
@@ -90,15 +101,20 @@ def main():
     for col in cat_features:
         rides_info[col] = rides_info[col].astype(str)
 
-    train, test = train_test_split(rides_info, test_size=0.2, random_state=42)
+    # Разделение на тренировочную и валидационную выборки
+    train, test = train_test_split(rides_info, test_size=0.2, random_state=42) 
     X_train = train[filtered_features]
     y_train = train['target_class']
 
     X_test = test[filtered_features]
     y_test = test['target_class'] 
 
+    # Логирование только валидационной выборки
     logger.report_table(title="Valid data", series="datasets", table_plot=test)
+    
+    #EDA - баланс классов
     rides_info.target_class.value_counts().plot(kind='bar', title='Target class distribution')
+    # Сохраняем график в ClearML
     logger.report_matplotlib_figure(
         title="Target class distribution",
         series="target_class_distribution",
@@ -108,16 +124,15 @@ def main():
     model = CatBoostClassifier(**cb_params)
     model.fit(X_train, y_train, eval_set=(X_test, y_test), verbose=100)
 
+    # Сохранение обученной модели
     model.save_model("catboost_model.cbm", format="cbm")
 
+    # Расчет и сохранение метрики на валидационной выборке
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
-    logger.report_single_value(name='Accuracy', value=accuracy)
-
-
     cls_report = classification_report(y_test, y_pred, output_dict=True)
     cls_report = pd.DataFrame(cls_report).transpose()
-
+    logger.report_single_value(name='Accuracy', value=accuracy)
     logger.report_table(title="Classification Report", series="metrics", table_plot=cls_report)
 
     task.close()
