@@ -8,3 +8,4 @@ catboost_info/
 ca/
 *.log
 data/
+*.cbm
