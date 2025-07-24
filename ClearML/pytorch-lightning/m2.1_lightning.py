@@ -25,10 +25,12 @@ import torchvision.models as models
 from lightning import (
     Trainer,
     LightningModule,
-    LightningDataModule,
+    LightningDataModule,    
 )
 
 from dataclasses import dataclass
+
+torch.set_float32_matmul_precision('high')
 
 @dataclass
 class CFG:
@@ -42,7 +44,7 @@ class CFG:
     lr: float = 1e-3
     batch_size: int = 200
     num_workers: int = 2
-    epochs: int = 1
+    epochs: int = 10
     gpus: int = 2
     stride: int = 1
     dilation: int = 1
@@ -130,6 +132,8 @@ class SignModel(LightningModule):
         self.stride = cfg.stride
         self.dilation = cfg.dilation
         self.n_classes = cfg.n_classes
+        self.num_correct = 0
+        self.num_total = 0
 
         self.block1 = nn.Sequential(
             # (bacth, 1, 28, 28)
@@ -184,8 +188,11 @@ class SignModel(LightningModule):
         data, labels = batch
         pred_clas = self(data)
         loss = self.classification_criterion(pred_clas, labels)
+        pred_labels = torch.argmax(pred_clas, dim=1)
+        self.num_correct += float((pred_labels == labels).sum())
+        self.num_total += labels.shape[0]
         loss_dict = {
-            f"{step}/loss": loss
+            f"{step}/loss": loss,
         }
         self.log_dict(loss_dict, prog_bar=True)
         return loss_dict
@@ -205,6 +212,11 @@ class SignModel(LightningModule):
     def configure_optimizers(self):
         optimizer = optim.Adam(self.parameters(), lr=self.lr)
         return optimizer
+    
+    def on_train_epoch_end(self):
+        accuracy = self.num_correct / self.num_total
+        self.log("train/accuracy", accuracy, prog_bar=True)
+        self.num_correct = 0
 
 def main(fast_dev_run: bool):
     cfg = CFG()
@@ -231,13 +243,13 @@ def main(fast_dev_run: bool):
         
         trainer = Trainer(
             max_epochs=cfg.epochs,
-            gpus=cfg.gpus,
             log_every_n_steps=cfg.log_every_n_steps,)
         trainer.fit(model, datamodule=ds)
         print("Обучение завершено успешно")
                 
-    except:
-        print("Тестовый прогон завершился с ошибкой")
+    except Exception as e:
+        print(f"!!!EXCEPTION: {e}")
+        print("!!!Тестовый прогон завершился с ошибкой!!!")
         sys.exit(1)
         
     model_path = Path(cfg.path_to_save)
