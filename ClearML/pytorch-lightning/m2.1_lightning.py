@@ -42,7 +42,7 @@ class CFG:
     lr: float = 1e-3
     batch_size: int = 200
     num_workers: int = 2
-    epochs: int = 5
+    epochs: int = 20
     stride: int = 1
     dilation: int = 1
     n_classes: int = 25
