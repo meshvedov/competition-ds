@@ -9,3 +9,7 @@ ca/
 *.log
 data/
 *.cbm
+*.zip
+*.png
+*.png|PNG
+*.PNG

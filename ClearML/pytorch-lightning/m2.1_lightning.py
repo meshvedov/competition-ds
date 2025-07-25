@@ -4,7 +4,6 @@ import argparse
 import numpy as np
 import pandas as pd
 
-import time
 import os
 import sys
 from pathlib import Path
@@ -44,8 +43,7 @@ class CFG:
     lr: float = 1e-3
     batch_size: int = 200
     num_workers: int = 2
-    epochs: int = 10
-    gpus: int = 2
+    epochs: int = 5
     stride: int = 1
     dilation: int = 1
     n_classes: int = 25
@@ -213,26 +211,21 @@ class SignModel(LightningModule):
         optimizer = optim.Adam(self.parameters(), lr=self.lr)
         return optimizer
     
-    def on_train_epoch_end(self):
+    def _accuracy(self, stage: str):
         accuracy = self.num_correct / self.num_total
-        self.log("train/accuracy", accuracy, prog_bar=True)
+        self.log(f"{stage}/accuracy", accuracy, prog_bar=True)
         self.num_correct = 0
+        self.num_total = 0
+        
+    def on_train_epoch_end(self):
+        self._accuracy('train')
+        
+    def on_test_epoch_end(self):
+        self._accuracy('test')
+
 
 def main(fast_dev_run: bool):
     cfg = CFG()
-    # train = pd.read_csv("sign_mnist_train.csv")
-    # test = pd.read_csv("sign_mnist_test.csv")
-    # transforms4train = transforms.Compose(
-    #     [
-    #         # transforms.Normalize(159, 40),
-    #         transforms.RandomHorizontalFlip(p=0.1),
-    #         transforms.RandomApply([transforms.RandomRotation(degrees=(-180, 180))], p=0.2),
-    #     ]
-    # )
-    # train_dataset = SignLanguageDataset(train, transform=transforms4train)
-    # test_dataset = SignLanguageDataset(test)
-    # train_datasets = {'train': train_dataset, 'val': test_dataset}
-    
     ds = SignDM(cfg)
     model = SignModel(cfg)
     try:
@@ -245,6 +238,7 @@ def main(fast_dev_run: bool):
             max_epochs=cfg.epochs,
             log_every_n_steps=cfg.log_every_n_steps,)
         trainer.fit(model, datamodule=ds)
+        trainer.test(model, datamodule=ds)
         print("Обучение завершено успешно")
                 
     except Exception as e:
@@ -252,11 +246,12 @@ def main(fast_dev_run: bool):
         print("!!!Тестовый прогон завершился с ошибкой!!!")
         sys.exit(1)
         
+    # Сохранение весов модели
     model_path = Path(cfg.path_to_save)
     model_name = "sign_model_weight.pth"
     model_path.mkdir(parents=True, exist_ok=True)
     torch.save(model.state_dict(), model_path / model_name)
-    print(f"Модель сохранена в {model_path / model_name}")
+    print(f"Веса модели сохранены в {model_path / model_name}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Python Lightning script")
