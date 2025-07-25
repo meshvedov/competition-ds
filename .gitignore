@@ -10,6 +10,4 @@ ca/
 data/
 *.cbm
 *.zip
-*.png
-*.png|PNG
 *.PNG

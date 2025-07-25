@@ -1,6 +1,6 @@
 # Sign Language MNIST Classification with PyTorch Lightning
 
-![Sign Language MNIST Example](data/amer_sign2.png)  
+![Sign Language MNIST Example](assets/amer_sign2.png)  
 *Пример изображений из датасета Sign Language MNIST*
 
 Проект реализует классификатор изображений жестового языка (ASL) на основе датасета Sign Language MNIST с использованием PyTorch Lightning.
