@@ -42,7 +42,7 @@ class CFG:
     lr: float = 1e-3
     batch_size: int = 200
     num_workers: int = 2
-    epochs: int = 20
+    epochs: int = 5
     stride: int = 1
     dilation: int = 1
     n_classes: int = 25
@@ -213,6 +213,10 @@ class SignModel(LightningModule):
     def _accuracy(self, stage: str):
         accuracy = self.num_correct / self.num_total
         self.log(f"{stage}/accuracy", accuracy, prog_bar=True)
+        # self.num_correct = 0
+        # self.num_total = 0
+        
+    def on_train_epoch_start(self):
         self.num_correct = 0
         self.num_total = 0
         
@@ -221,6 +225,14 @@ class SignModel(LightningModule):
         
     def on_test_epoch_end(self):
         self._accuracy('test')
+        
+    def on_validation_epoch_start(self):
+        self.num_correct = 0
+        self.num_total = 0
+        
+    def on_validation_epoch_end(self):
+        #import pdb; pdb.set_trace()
+        self._accuracy('valid')
 
 
 def main(fast_dev_run: bool):
