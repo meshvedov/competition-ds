@@ -32,8 +32,8 @@ torch.set_float32_matmul_precision('high')
 
 @dataclass
 class CFG:
-    csv_train_path: str = "sign_mnist_train.csv"
-    csv_test_path: str = "sign_mnist_test.csv"
+    csv_train_path: str = "data/sign_mnist_train.csv"
+    csv_test_path: str = "data/sign_mnist_test.csv"
     path_to_save: str = "models"
     seed: int = 2024
     device: str = "cuda" if torch.cuda.is_available() else "cpu"
@@ -85,8 +85,8 @@ class SignDM(LightningDataModule):
         if not os.path.exists(self.cfg.csv_test_path):
             raise FileNotFoundError(f"Test data file {self.cfg.csv_test_path} not found.")
         
-        self.data = pd.read_csv("sign_mnist_train.csv")
-        self.test = pd.read_csv("sign_mnist_test.csv")
+        self.data = pd.read_csv(self.cfg.csv_train_path)
+        self.test = pd.read_csv(self.cfg.csv_test_path)
 
 
     def setup(self, stage: str):
