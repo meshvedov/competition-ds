@@ -36,7 +36,7 @@ class CFG:
     csv_test_path: str = "data/sign_mnist_test.csv"
     path_to_save: str = "models"
     seed: int = 2024
-    device: str = "cuda" if torch.cuda.is_available() else "cpu"
+    device: str = "gpu" if torch.cuda.is_available() else "cpu"
     hidden_size: int = 128
     dropout: float = 0.1
     lr: float = 1e-3
@@ -213,30 +213,30 @@ class SignModel(LightningModule):
     def _accuracy(self, stage: str):
         accuracy = self.num_correct / self.num_total
         self.log(f"{stage}/accuracy", accuracy, prog_bar=True)
-        # self.num_correct = 0
-        # self.num_total = 0
-        
-    def on_train_epoch_start(self):
+
+    def _reset_num(self):
         self.num_correct = 0
         self.num_total = 0
         
-    def on_train_epoch_end(self):
-        self._accuracy('train')
+    def on_train_epoch_start(self):
+        self._reset_num()
+
+    def on_test_epoch_start(self):
+        self._reset_num()
         
     def on_test_epoch_end(self):
         self._accuracy('test')
         
     def on_validation_epoch_start(self):
-        self.num_correct = 0
-        self.num_total = 0
+        self._reset_num()
         
     def on_validation_epoch_end(self):
-        #import pdb; pdb.set_trace()
         self._accuracy('valid')
 
 
-def main(fast_dev_run: bool):
+def main(fast_dev_run: bool, epochs: int):
     cfg = CFG()
+    cfg.epochs = epochs
     ds = SignDM(cfg)
     model = SignModel(cfg)
     try:
@@ -246,6 +246,7 @@ def main(fast_dev_run: bool):
             print("Тестовый прогон завершился успешно")
         
         trainer = Trainer(
+            accelerator=cfg.device,
             max_epochs=cfg.epochs,
             log_every_n_steps=cfg.log_every_n_steps,)
         trainer.fit(model, datamodule=ds)
@@ -254,7 +255,7 @@ def main(fast_dev_run: bool):
                 
     except Exception as e:
         print(f"!!!EXCEPTION: {e}")
-        print("!!!Тестовый прогон завершился с ошибкой!!!")
+        print("!!!Прогон завершился с ошибкой!!!")
         sys.exit(1)
         
     # Сохранение весов модели
@@ -267,5 +268,6 @@ def main(fast_dev_run: bool):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Python Lightning script")
     parser.add_argument('--fast_dev_run', type=bool, default=False, help='Run a single batch for quick debugging')
+    parser.add_argument('--epochs', type=int, default=5, help='Run a single batch for quick debugging')
     args = parser.parse_args()
-    main(args.fast_dev_run)
+    main(args.fast_dev_run, args.epochs)

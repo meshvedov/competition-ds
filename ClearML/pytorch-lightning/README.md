@@ -34,9 +34,12 @@ pip install -r requirements.txt
 ```bash
 python m2.1_lightning.py
 ```
-С продвинутыми опциями:
+С продвинутыми опциями: <br>
+`--fast_dev_run: bool` - единичный тестовый прогон<br>
+`--epochs: int` - колличество эпох обучения
 ```bash
 python m2.1_lightning.py --fast_dev_run True
+python m2.1_lightning.py --epochs 20
 ```
 ## 🧠 Архитектура модели
 ```python
